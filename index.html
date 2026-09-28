@@ -1,4 +1,119 @@
-setTimeout(()=>savePage(bookId,pageIndex,true),700);});
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#5146d8">
+<title>Mon Livre</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#faf8ff;color:#24233a}
+button,input,textarea,select{font:inherit}button{border:0;cursor:pointer}
+.app{max-width:520px;margin:auto;min-height:100vh;background:#fff;box-shadow:0 0 30px #ddd}
+header{padding:20px 18px 14px;background:linear-gradient(135deg,#5146d8,#8b74ef);color:white;border-radius:0 0 28px 28px}
+.brand{font-size:28px;font-weight:800}.subtitle{opacity:.9;margin-top:4px}
+main{padding:18px 16px 90px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.card,.book{background:#fff;border:1px solid #eee9ff;border-radius:18px;padding:15px;box-shadow:0 5px 18px #3c2f7710}
+.primary{background:#5146d8;color:#fff;border-radius:14px;padding:14px 16px;width:100%;font-weight:700}
+.secondary{background:#f0edff;color:#4438b8;border-radius:14px;padding:13px;width:100%;font-weight:700}
+h2{margin:6px 0 14px}.muted{color:#777;font-size:14px}.cover{height:150px;border-radius:14px;object-fit:cover;width:100%;background:linear-gradient(135deg,#eee9ff,#ffd9e7);display:flex;align-items:center;justify-content:center;font-size:42px}
+label{display:block;font-weight:650;margin:12px 0 6px}input,textarea,select{width:100%;border:1px solid #ddd8ef;border-radius:12px;padding:12px;background:#fff}textarea{min-height:180px;resize:vertical}
+.row{display:flex;gap:10px;align-items:center}.row>*{flex:1}.book{display:flex;gap:12px;align-items:center;margin-bottom:10px}.thumb{width:68px;height:84px;border-radius:10px;object-fit:cover;background:#eee9ff;display:flex;align-items:center;justify-content:center;font-size:25px}.book h3{margin:0 0 4px}.book small{color:#777}
+nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(520px,100%);background:#fff;border-top:1px solid #eee;display:flex;justify-content:space-around;padding:9px 5px calc(9px + env(safe-area-inset-bottom));z-index:5}
+nav button{background:none;color:#666;font-size:12px}.navicon{display:block;font-size:21px;margin-bottom:2px}.active{color:#5146d8!important;font-weight:700}
+.hidden{display:none!important}.pill{display:inline-block;padding:6px 9px;background:#f0edff;color:#5146d8;border-radius:999px;font-size:12px;margin:3px}.back{background:none;color:#5146d8;padding:4px 0;font-weight:700}.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#25233a;color:white;padding:11px 16px;border-radius:999px;display:none;z-index:10}
+.signature{border:1px dashed #bbb0ee;border-radius:14px;padding:15px;text-align:center;font-family:cursive;font-size:30px;color:#5146d8;min-height:80px}
+</style>
+</head>
+<body>
+<div class="app">
+<header><div class="brand">📖 Mon Livre</div><div class="subtitle">Écrire • Créer • Lire</div></header>
+<main id="main"></main>
+<nav>
+<button id="navHome" onclick="home()"><span class="navicon">⌂</span>Accueil</button>
+<button id="navBooks" onclick="books()"><span class="navicon">📚</span>Mes livres</button>
+<button onclick="createBook()"><span class="navicon">➕</span>Créer</button>
+<button onclick="profile()"><span class="navicon">👤</span>Profil</button>
+</nav>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const KEY='monLivreBooksV1';
+let state={view:'home',editId:null};
+const $=id=>document.getElementById(id);
+function data(){try{return JSON.parse(localStorage.getItem(KEY)||'[]')}catch(e){return[]}}
+function save(d){localStorage.setItem(KEY,JSON.stringify(d))}
+function toast(t){let x=$('toast');x.textContent=t;x.style.display='block';setTimeout(()=>x.style.display='none',1800)}
+function imgData(file,cb){if(!file)return cb('');let r=new FileReader();r.onload=()=>cb(r.result);r.readAsDataURL(file)}
+function shell(html){$('main').innerHTML=html}
+function home(){
+ state.view='home'; state.editId=null;
+ let d=data();
+ shell(`<h2>Bienvenue 👋</h2>
+ <div class="card"><div class="cover">📖</div><h2>Votre espace de création</h2><p class="muted">Créez vos propres livres, ajoutez du texte et des images, puis retrouvez-les quand vous voulez.</p><button class="primary" onclick="createBook()">+ Créer un livre</button></div>
+ <div style="height:12px"></div><div class="grid">
+ <button class="secondary" onclick="books()">📚 Mes livres (${d.length})</button>
+ <button class="secondary" onclick="profile()">⚙️ Profil</button></div>`);
+ active('navHome')
+}
+function books(){
+ let d=data();
+ shell(`<button class="back" onclick="home()">← Accueil</button><h2>Mes livres</h2>
+ ${d.length?d.map(b=>`<div class="book"><div class="thumb">${b.cover?`<img src="${b.cover}" style="width:100%;height:100%;object-fit:cover;border-radius:10px">`:'📖'}</div><div style="flex:1"><h3>${esc(b.title)}</h3><small>${esc(b.author||'Auteur')} • ${b.language||'Français'}</small><div><span class="pill">${b.pages?.length||1} page(s)</span></div></div><button class="secondary" style="flex:0 0 72px;padding:9px" onclick="openBook('${b.id}')">Ouvrir</button></div>`).join(''):'<div class="card"><p>Vous n’avez encore aucun livre.</p><button class="primary" onclick="createBook()">Créer mon premier livre</button></div>'}`);
+ active('navBooks')
+}
+function createBook(){
+ shell(`<button class="back" onclick="home()">← Retour</button><h2>Créer un livre</h2>
+ <div class="card"><label>Couverture</label><div class="cover" id="coverPreview">📖</div><input id="cover" type="file" accept="image/*" onchange="previewCover(this)">
+ <label>Titre du livre</label><input id="title" placeholder="Ex. Mon histoire">
+ <label>Auteur</label><input id="author" placeholder="Votre nom">
+ <label>Langue du livre</label><select id="language"><option>Français</option><option>Anglais</option><option>Bambara</option><option>Dioula</option><option>Arabe</option><option>Autre</option></select>
+ <label>Première page</label><textarea id="firstPage" placeholder="Commencez à écrire votre histoire..."></textarea>
+ <div style="height:10px"></div><button class="primary" onclick="finishCreate()">Créer mon livre</button></div>`);
+}
+let pendingCover='';
+function previewCover(el){imgData(el.files[0],x=>{pendingCover=x;$('coverPreview').innerHTML=x?`<img src="${x}" style="width:100%;height:100%;object-fit:cover;border-radius:14px">`:'📖'})}
+function finishCreate(){
+ let title=$('title').value.trim()||'Sans titre', author=$('author').value.trim()||'Auteur';
+ let b={id:Date.now().toString(),title,author,language:$('language').value,cover:pendingCover,pages:[{text:$('firstPage').value,images:[],signature:''}],created:new Date().toISOString()};
+ let d=data();d.unshift(b);save(d);pendingCover='';toast('Livre créé ❤️');openBook(b.id)
+}
+function openBook(id){state.editId=id;let b=data().find(x=>x.id===id);if(!b)return books();
+ shell(`<button class="back" onclick="books()">← Mes livres</button><div class="card"><div class="cover">${b.cover?`<img src="${b.cover}" style="width:100%;height:100%;object-fit:cover;border-radius:14px">`:'📖'}</div><h2>${esc(b.title)}</h2><p class="muted">${esc(b.author)} • ${b.language}</p>
+ <div class="grid"><button class="primary" onclick="editPage('${id}')">✏️ Écrire</button><button class="secondary" onclick="readBook('${id}')">📖 Lire</button></div></div>
+ <div style="height:12px"></div><div class="card"><h3>Pages</h3>${b.pages.map((p,i)=>`<div class="pill">Page ${i+1}</div>`).join('')}<button class="secondary" style="margin-top:10px" onclick="addPage('${id}')">+ Ajouter une page</button></div>`)
+}
+function editPage(id,pi=0){
+ let d=data(),b=d.find(x=>x.id===id),p=b.pages[pi]||{text:'',images:[],signature:''};
+ shell(`<button class="back" onclick="openBook('${id}')">← Livre</button><h2>Édition — page ${pi+1}</h2>
+ <div class="card"><textarea id="pageText" placeholder="Écrivez votre texte...">${esc(p.text)}</textarea>
+ <label>Ajouter une image</label><input id="pageImg" type="file" accept="image/*" onchange="previewPageImg(this)">
+ <div id="pageImgPreview">${(p.images||[]).map(x=>`<img src="${x}" style="width:100%;border-radius:12px;margin-top:8px">`).join('')}</div>
+ <label>Signature</label><input id="sig" placeholder="Écrivez votre signature (ex. Amina ♥)" value="${esc(p.signature||'')}">
+ <div class="signature" id="sigPreview">${esc(p.signature||'Votre signature')}</div>
+ <div class="row"><button class="secondary" onclick="savePage('${id}',${pi})">💾 Enregistrer</button><button class="primary" onclick="savePage('${id}',${pi});addPage('${id}')">+ Page suivante</button></div></div>`);
+ $('sig').addEventListener('input',e=>$('sigPreview').textContent=e.target.value||'Votre signature')
+}
+let pendingPageImg='';
+function previewPageImg(el){imgData(el.files[0],x=>{pendingPageImg=x;$('pageImgPreview').innerHTML=x?`<img src="${x}" style="width:100%;border-radius:12px;margin-top:8px">`:''})}
+function savePage(id,pi){
+ let d=data(),b=d.find(x=>x.id===id);b.pages[pi].text=$('pageText').value;b.pages[pi].signature=$('sig').value;
+ if(pendingPageImg){b.pages[pi].images=b.pages[pi].images||[];b.pages[pi].images.push(pendingPageImg);pendingPageImg=''}
+ save(d);toast('Page enregistrée ✓')
+}
+function addPage(id){let d=data(),b=d.find(x=>x.id===id);b.pages.push({text:'',images:[],signature:''});save(d);editPage(id,b.pages.length-1)}
+function readBook(id){
+ let b=data().find(x=>x.id===id),i=0;
+ function render(){let p=b.pages[i];shell(`<button class="back" onclick="openBook('${id}')">← Quitter la lecture</button><h2>${esc(b.title)}</h2><div class="card"><span class="pill">Page ${i+1}/${b.pages.length}</span><div style="white-space:pre-wrap;line-height:1.7;margin-top:14px">${esc(p.text)||'<span class="muted">Page vide</span>'}</div>${(p.images||[]).map(x=>`<img src="${x}" style="width:100%;border-radius:14px;margin-top:14px">`).join('')}${p.signature?`<div class="signature" style="margin-top:15px">${esc(p.signature)}</div>`:''}</div><div class="row"><button class="secondary" ${i===0?'disabled':''} onclick="i--;render()">← Précédente</button><button class="primary" ${i===b.pages.length-1?'disabled':''} onclick="i++;render()">Suivante →</button></div>`)}
+ render()
+}
+function profile(){shell(`<button class="back" onclick="home()">← Accueil</button><h2>Mon profil</h2><div class="card"><div class="cover">👤</div><h3>Mon espace personnel</h3><p class="muted">Les livres sont enregistrés directement sur ce téléphone dans cette première version.</p><label>Langue de l’application</label><select onchange="toast('Langue sélectionnée : '+this.value)"><option>Français</option><option>English</option><option>Bambara</option><option>Dioula</option></select><label>Apparence</label><select onchange="document.body.style.background=this.value==='Sombre'?'#171622':'#faf8ff'"><option>Clair</option><option>Sombre</option></select></div>`)}
+function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function active(id){document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));$(id)?.classList.add('active')}
+home();
+</script>
+</body>
+</html>setTimeout(()=>savePage(bookId,pageIndex,true),700);});
 }
 
 function formatDoc(cmd){
